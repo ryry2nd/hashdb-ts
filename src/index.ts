@@ -15,8 +15,6 @@ const bytes = db.export();
 
 console.log(bytes);
 
-const dbcopy = new Table<number, User>();
-
-dbcopy.import(bytes)
+const dbcopy = Table.import<number, User>(bytes);
 
 console.log(dbcopy.get(1234));

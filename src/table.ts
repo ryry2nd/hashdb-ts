@@ -16,6 +16,15 @@ export class Table<K, V> {
 	delete(key: K) {
 		this.tables.delete(key);
 	}
+	size() : number {
+		return this.tables.size;
+	}
+	clear() {
+		this.tables.clear()
+	}
+	has(key: K) : boolean {
+		return this.tables.has(key);
+	}
 
     export(): Buffer {
 		const entries: Entry<K, V>[] = Array.from(this.tables.entries())
@@ -29,13 +38,17 @@ export class Table<K, V> {
 		return Buffer.from(json, "utf-8");
     }
 
-    import(buffer: Buffer) {
+    static import<K, V>(buffer: Buffer): Table<K, V> {
         const json = buffer.toString("utf-8");
 
         const entries = JSON.parse(json) as Entry<K, V>[];
 
+		let table = new Table<K, V>();
+
         for (const entry of entries) {
-            this.tables.set(entry.key, entry.value);
+            table.set(entry.key, entry.value);
         }
+
+		return table
     }
 }
