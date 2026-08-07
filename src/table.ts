@@ -1,25 +1,18 @@
-interface Entry<K, V> {
-    key: K;
-    value: V;
+interface Entry {
+    key: unknown;
+    value: Record<string, unknown>;
 }
 
 export class Table {
-    private tables = new Map<unknown, unknown>();
-	private schema_types: {
-		keyType: string;
-		valueType: string;
-	} | null = null;
+    private tables = new Map<unknown, Record<string, unknown>>();
+	private key_type: string = "";
 
-	set(key: unknown, value: unknown) {
-		if (this.schema_types === null) {
-			this.schema_types = {
-				keyType: typeof key,
-				valueType: typeof value
-			};
+	set(key: unknown, value: Record<string, unknown>) {
+		if (this.key_type === "") {
+			this.key_type = typeof key;
 		}
 		else if (
-			this.schema_types.keyType !== typeof key ||
-			this.schema_types.valueType !== typeof value
+			this.key_type !== typeof key
 		) {
 			console.log("types do not match: convert to set type");
 			return;
@@ -28,7 +21,7 @@ export class Table {
 		this.tables.set(key, value);
 	}
 
-	setMany(sets: [unknown, unknown][]) {
+	setMany(sets: [unknown, Record<string, unknown>][]) {
 		for (const [f, s] of sets) {
 			this.set(f, s);
 		}
@@ -36,41 +29,48 @@ export class Table {
 
 	select(
 		fields: string[] | "*",
-		predicate?: (value: Record<string, unknown>) => boolean
-	) {
-		const results: Record<string, unknown>[] = [];
+		predicate?: (id: unknown, value: Record<string, unknown>) => boolean,
+		limit: number = -1
+	) : Table {
+		let lim = limit;
+		const results = new Table();
 
-		for (const value of this.tables.values()) {
-			if (typeof value !== "object" || value === null) {
-				continue;
-			}
+		for (const [id, value] of this.tables.entries()) {
+			if (lim == 0) {break;}
 
-			const obj = value as Record<string, unknown>;
-
-			if (predicate && !predicate(obj)) {
+			if (predicate && !predicate(id, value)) {
 				continue;
 			}
 
 			if (fields === "*") {
-				results.push({ ...obj });
-				continue;
+				results.set(id, value);
 			}
+			else {
+				let row: Record<string, unknown> = {};
 
-			const row: Record<string, unknown> = {};
+				const obj = value;
 
-			for (const field of fields) {
-				row[field] = obj[field];
+				for (const field of fields) {
+					row[field] = obj[field];
+				}
+
+				results.set(id, row);
 			}
-
-			results.push(row);
+			lim -= 1;
 		}
 
 		return results;
 	}
-    get(key: unknown): unknown | undefined {
+    get(key: unknown): Record<string, unknown> | undefined {
         return this.tables.get(key);
     }
-	getall(): MapIterator<unknown> {
+	getall(): MapIterator<[unknown, Record<string, unknown>]> {
+		return this.tables.entries();
+	}
+	keys(): MapIterator<unknown> {
+		return this.tables.keys();
+	}
+	values(): MapIterator<Record<string, unknown>> {
 		return this.tables.values();
 	}
 	delete(key: unknown) {
@@ -91,14 +91,14 @@ export class Table {
 			console.log("Cannot export table of size zero.");
 			return Buffer.from("", "utf-8");
 		}
-		const entries: Entry<unknown, unknown>[] = Array.from(this.tables.entries())
+		const entries: Entry[] = Array.from(this.tables.entries())
 		.map(([key, value]) => ({
 			key,
 			value
 		}));
 
 		const data = {
-			schema: this.schema_types,
+			schema: this.key_type,
 			entries
 		};
 
@@ -111,8 +111,10 @@ export class Table {
 
 		const table = new Table();
 
+		table.key_type = data.schema;
+
 		for (const entry of data.entries) {
-			table.set(entry.key, entry.value);
+			table.tables.set(entry.key, entry.value);
 		}
 
 		return table;
