@@ -1,20 +1,20 @@
 import { Table } from "./table";
 
-interface User {
-    name: string;
-    age: number;
-}
-
-const db = new Table<number, User>();
+const db = new Table();
 
 db.set(1234, {name: "Ryan", age: 20});
+db.set(12345, {name: "child", age: 3});
 
-console.log(db.get(1234));
+db.setMany([[1, {name: "oldGuy", age: 40}], [2, {name: "dave", age: 50}], [3, {name: "chicken", age: 4}], [4, {name: "rico", age: 70}]])
+
+
+console.log(
+    db.select("*", user => (user.age as number) >= 18)
+);
+
 
 const bytes = db.export();
 
-console.log(bytes);
+const dbcopy = Table.import(bytes);
 
-const dbcopy = Table.import<number, User>(bytes);
-
-console.log(dbcopy.get(1234));
+console.log(dbcopy.getall());
