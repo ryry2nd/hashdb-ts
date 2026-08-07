@@ -9,12 +9,15 @@ db.setMany([[1, {name: "oldGuy", age: 100, sex: "M"}], [2, {name: "dave", age: 5
 
 
 console.log(
-    db.select(["name", "age"], (id, value) => ((value.age as number) >= 18) && (id as number) < 100, 2).getall()
+    db.select(["name", "age"], (id, value) => ((value.age as number) >= 18) && (id as number) < 100, 2).toArray()
 );
 
+console.log(
+    db.select(["name", "age"], (id, value) => ((value.sex as string) === "F")).toArray()
+);
 
 const bytes = db.export();
 
 const dbcopy = Table.import(bytes);
 
-console.log(dbcopy.select("*", (id, value) => true).getall());
+console.log(dbcopy.select("*").toArray());

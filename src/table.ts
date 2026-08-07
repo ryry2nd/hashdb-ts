@@ -86,6 +86,13 @@ export class Table {
 		return this.tables.has(key);
 	}
 
+	toArray() : Record<string, unknown>[] {
+		return Array.from(this.tables.entries()).map(([id, value]) => ({
+			id,
+			...value
+		}));
+	}
+
     export(): Buffer {
 		if (this.tables.size == 0) {
 			console.log("Cannot export table of size zero.");
