@@ -191,23 +191,68 @@ export class Table {
 		return result;
 	}
 
+	optimize() {
+		let subBy = 0;
+
+		let newTables = this.tables;
+		let newIndexes = this.indexes;
+
+		const indexKeys = Array.from(this.indexes.keys());
+
+		for (let i = 0; i < this.nextID; i++) {
+			if (!newTables.has(i)) {
+				subBy++;
+			}
+			else {
+				const tmp = newTables.get(i);
+				if (tmp !== undefined) {
+					newTables.set(i - subBy, tmp);
+					if (subBy > 0) {
+						newTables.delete(i);
+					}
+
+					// updating indexes
+					for (const [field, index] of newIndexes) {
+						const ids = index.get(tmp[this.fieldToNumber(field)]);
+
+						if (ids) {
+							ids.delete(i);
+							ids.add(i - subBy);
+						}
+					}
+
+				}
+				else {
+					throw Error(`Optimization failed: Key not found`);
+				}
+			}
+		}
+
+		this.tables = newTables;
+		this.indexes = newIndexes;
+
+		this.nextID = this.tables.size;
+	}
+
     export(): string {
 		if (this.tables.size == 0) {
 			throw new Error(`Cannot export table of size zero.`);
 		}
-		const exportedEntries = Array.from(this.tables.entries());
+
+		this.optimize();
+
+		const exportedEntries = Array.from(this.tables.values());
 
 		const exportedIndexes = Array.from(this.indexes.entries()).map(
-			([field, index]) => ({
+			([field, index]) => ([
 				field,
-				values: Array.from(index.entries()).map(
+				Array.from(index.entries()).map(
 					([key, ids]) => [key, Array.from(ids)]
 				)
-			})
+			])
 		);
 
 		const data = [
-			this.nextID,
 			this.types,
 			exportedEntries,
 			exportedIndexes,
@@ -228,23 +273,25 @@ export class Table {
 		}
 
 		const data = JSON.parse(buffer);
-		const table = new Table(data[1]);
+		const table = new Table(data[0]);
 
-		for (const exported of data[3]) {
+		for (const exported of data[2]) {
 			const index = new Map<unknown, Set<number>>();
 
-			for (const [key, ids] of exported.values) {
+			for (const [key, ids] of exported[1]) {
 				index.set(key, new Set<number>(ids));
 			}
 
-			table.indexes.set(exported.field, index);
+			table.indexes.set(exported[0], index);
 		}
 
-		for (const entry of data[2]) {
-			table.tables.set(entry[0], entry[1]);
+		let i = 0;
+		for (const entry of data[1]) {
+			table.tables.set(i, entry);
+			i++
 		}
 
-		table.nextID = data[0];
+		table.nextID = table.tables.size;
 
 		return table;
 	}
@@ -253,6 +300,4 @@ export class Table {
 		const data = readFileSync(filename, "utf8");
 		return Table.import(data);
 	}
-
-	//toDo add index optimization to not skip deleted keys
 }
