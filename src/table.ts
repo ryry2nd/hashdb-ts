@@ -172,6 +172,7 @@ export class Table {
 	clear() {
 		this.tables.clear()
 		this.indexes.clear()
+		this.nextID = 0;
 	}
 
 	toArray(): Record<string, unknown>[] {
@@ -194,11 +195,7 @@ export class Table {
 		if (this.tables.size == 0) {
 			throw new Error(`Cannot export table of size zero.`);
 		}
-		const exportedEntries = Array.from(this.tables.entries())
-		.map(([key, value]) => ({
-			key,
-			value
-		}));
+		const exportedEntries = Array.from(this.tables.entries());
 
 		const exportedIndexes = Array.from(this.indexes.entries()).map(
 			([field, index]) => ({
@@ -209,12 +206,12 @@ export class Table {
 			})
 		);
 
-		const data = {
-			entries : exportedEntries,
-			indexes : exportedIndexes,
-			nextID: this.nextID,
-			types: this.types
-		};
+		const data = [
+			this.nextID,
+			this.types,
+			exportedEntries,
+			exportedIndexes,
+		];
 
 		return JSON.stringify(data);
     }
@@ -231,9 +228,9 @@ export class Table {
 		}
 
 		const data = JSON.parse(buffer);
-		const table = new Table(data.types);
+		const table = new Table(data[1]);
 
-		for (const exported of data.indexes) {
+		for (const exported of data[3]) {
 			const index = new Map<unknown, Set<number>>();
 
 			for (const [key, ids] of exported.values) {
@@ -243,11 +240,11 @@ export class Table {
 			table.indexes.set(exported.field, index);
 		}
 
-		for (const entry of data.entries) {
-			table.tables.set(entry.key, entry.value);
+		for (const entry of data[2]) {
+			table.tables.set(entry[0], entry[1]);
 		}
 
-		table.nextID = data.nextID;
+		table.nextID = data[0];
 
 		return table;
 	}
