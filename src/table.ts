@@ -253,4 +253,6 @@ export class Table {
 		const data = readFileSync(filename, "utf8");
 		return Table.import(data);
 	}
+
+	//toDo add index optimization to not reuse the same keys
 }
