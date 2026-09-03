@@ -7,7 +7,7 @@ db.set({name: "child", age: 3, sex: "F"});
 
 db.addIndex("name");
 
-db.setMany([{name: "oldGuy", age: 100, sex: "M"}, {name: "dave", age: 50, sex: "M"}, {name: "chicken", age: 4, sex: "F"}, {name: "rico", age: 70, sex: "M"}])
+db.setMany([{name: "oldGuy", age: 100, sex: "M"}, {name: "Dave", age: 50, sex: "M"}, {name: "chicken", age: 4, sex: "F"}, {name: "Rico", age: 70, sex: "M"}])
 
 
 db.set({name: "Jim", age: 30, sex: "M"});
@@ -32,8 +32,9 @@ console.log(
     db.select(["name", "age"], (id, value) => ((value.sex as string) === "F")).toArray()
 );
 
-const bytes = db.export();
+db.exportToFile("test.db");
 
-const dbcopy = Table.import(bytes);
+const dbcopy = Table.importFromFile("test.db");
 
 console.log(dbcopy.toArray());
+

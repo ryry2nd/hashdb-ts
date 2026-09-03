@@ -1,3 +1,5 @@
+import { readFileSync, writeFileSync } from "fs";
+
 export class Table {
     private tables = new Map<number, unknown[]>();
 	private indexes = new Map<string, Map<unknown, Set<number>>>();
@@ -188,7 +190,7 @@ export class Table {
 		return result;
 	}
 
-    export(): Buffer {
+    export(): string {
 		if (this.tables.size == 0) {
 			throw new Error(`Cannot export table of size zero.`);
 		}
@@ -214,16 +216,21 @@ export class Table {
 			types: this.types
 		};
 
-		const bytes = Buffer.from(JSON.stringify(data), "utf-8");
-		return bytes;
+		return JSON.stringify(data);
     }
 
-    static import(buffer: Buffer): Table {
+	exportToFile(filename: string) {
+		const ex = this.export();
+
+		writeFileSync(filename, ex);
+	}
+
+    static import(buffer: string): Table {
 		if (buffer.length === 0) {
 			throw new Error(`Cannot create table from empty buffer`);
 		}
 
-		const data = JSON.parse(buffer.toString("utf-8"));
+		const data = JSON.parse(buffer);
 		const table = new Table(data.types);
 
 		for (const exported of data.indexes) {
@@ -243,5 +250,10 @@ export class Table {
 		table.nextID = data.nextID;
 
 		return table;
+	}
+
+	static importFromFile(filename: string): Table {
+		const data = readFileSync(filename, "utf8");
+		return Table.import(data);
 	}
 }
