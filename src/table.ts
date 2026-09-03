@@ -254,5 +254,5 @@ export class Table {
 		return Table.import(data);
 	}
 
-	//toDo add index optimization to not reuse the same keys
+	//toDo add index optimization to not skip deleted keys
 }
