@@ -1,23 +1,41 @@
 import { readFileSync, writeFileSync } from "fs";
 
 export class Table {
-    private tables = new Map<number, unknown[]>();
-	private indexes = new Map<string, Map<unknown, Set<number>>>();
-	private nextID = 0;
-	private types: Record<string, string>;
+    private tables = new Map<number, unknown[]>(); // just a key-value pair
+	private indexes = new Map<string, Map<unknown, Set<number>>>(); // makes sorting quicker, it is just Map<indexType, Map<indexValue, index>>
+	private nextID = 0; // the next unused index, don't confuse with size.
+	private types: Record<string, string>; // all of the names and types of every column. It's a schema
 
 	constructor(types: Record<string, string>) {
 		this.types = types;
     }
 
+	// converts the string field (ex: age, name, sex) to an index
 	private fieldToNumber(field: string) : number {
 		return Object.keys(this.types).indexOf(field);
 	}
 
+	// converts a map to a simple array
 	private convertToType(value: Record<string, unknown>): unknown[] {
 		return Object.keys(this.types).map(field => value[field]);
 	}
 
+	// adds the entry to the table
+	/*
+	F = number of fields in the schema
+	V = number of fields in the input value
+	T = number of indexes
+
+	The first loop is O(V).
+	The second loop and convertToType() are O(F).
+	The index update loop is O(T).
+
+	Since every index corresponds to a schema field:
+	T <= F.
+
+	If valid input is guaranteed to contain exactly the schema fields,
+	then V = F, giving an overall time complexity of O(F).
+	*/
 	set(value: Record<string, unknown>) {
 		for (const field of Object.keys(value)) {
 			if (!Object.prototype.hasOwnProperty.call(this.types, field)) {
@@ -45,6 +63,7 @@ export class Table {
 		}
 	}
 
+	// Simply adds a new index of the inputted column and adds all previous values to it.
 	addIndex(field: string) {
 		if (!(field in this.types)) {
 			throw new Error(`Unknown field: ${field}`);
@@ -71,6 +90,25 @@ export class Table {
 		}
 	}
 
+	// Searches through the table with certain parameters and returns a new Table.
+	// It can also delete all of the selected elements.
+	/*
+	Since this function does a lot the time complexity heavily depends on what parameters are used
+
+	N = number of rows
+	F = number of fields
+
+	Best case:
+		O(F) (assuming you don't set the limit to 0 otherwise it's technically O(1))
+		This occurs when an indexed equality lookup is used and the lookup
+		returns no matching rows (or the limit is 0). The function still
+		has to process the table schema.
+	Worst case:
+		O(NF)
+		If no useful index is used, the function may have to examine every
+		row in the table. Each row requires iterating through all F fields
+		to construct the record.
+	 */
 	select(
 		fields: string[] | "*",
 		predicate?: (id: number, value: Record<string, unknown>) => boolean,
@@ -166,6 +204,7 @@ export class Table {
 
 		return results;
 	}
+
 	size() : number {
 		return this.tables.size;
 	}
@@ -175,6 +214,7 @@ export class Table {
 		this.nextID = 0;
 	}
 
+	// converts the entire table to a printable array
 	toArray(): Record<string, unknown>[] {
 		const result: Record<string, unknown>[] = [];
 
@@ -191,6 +231,7 @@ export class Table {
 		return result;
 	}
 
+	// compacts all indexes to not skip them. Only used automatically when exporting.
 	optimize() {
 		let subBy = 0;
 
@@ -234,6 +275,7 @@ export class Table {
 		this.nextID = this.tables.size;
 	}
 
+	// Converts the entire table and all entries and indexes to json format
     export(): string {
 		if (this.tables.size == 0) {
 			throw new Error(`Cannot export table of size zero.`);
@@ -261,12 +303,14 @@ export class Table {
 		return JSON.stringify(data);
     }
 
+	// exports database to json and then sends it to a file
 	exportToFile(filename: string) {
 		const ex = this.export();
 
 		writeFileSync(filename, ex);
 	}
 
+	// converts a json string to a new Table
     static import(buffer: string): Table {
 		if (buffer.length === 0) {
 			throw new Error(`Cannot create table from empty buffer`);
@@ -296,6 +340,7 @@ export class Table {
 		return table;
 	}
 
+	// Gets the data from a file and converts it to a new table
 	static importFromFile(filename: string): Table {
 		const data = readFileSync(filename, "utf8");
 		return Table.import(data);
